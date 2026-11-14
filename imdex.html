@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B1110">
+<title>FINGER AI</title>
+
+<style>
+:root {
+  --bg:#0B1110;
+  --panel:#192420;
+  --lime:#A3E635;
+  --text:#FFFFFF;
+  --muted:#94A39A;
+  --line:rgba(255,255,255,.08);
+}
+
+* {box-sizing:border-box}
+
+body {
+  margin:0;
+  min-height:100vh;
+  padding:24px 16px;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,sans-serif;
+}
+
+.app {
+  width:100%;
+  max-width:480px;
+  margin:auto;
+}
+
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:26px;
+}
+
+.logo {
+  font-size:23px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+
+.logo span {color:var(--lime)}
+
+.status {
+  color:var(--muted);
+  font-size:11px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:30px;
+  padding:9px 12px;
+}
+
+.status.active {color:var(--lime)}
+
+.camera-box {
+  position:relative;
+  overflow:hidden;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:22px;
+  aspect-ratio:4/4.5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+video {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  transform:scaleX(-1);
+  display:none;
+}
+
+.placeholder {
+  text-align:center;
+  color:var(--muted);
+  padding:20px;
+}
+
+.camera-icon {
+  font-size:44px;
+  margin-bottom:12px;
+}
+
+.camera-label {
+  position:absolute;
+  top:14px;
+  left:14px;
+  background:rgba(0,0,0,.55);
+  border-radius:30px;
+  padding:8px 12px;
+  font-size:11px;
+  z-index:2;
+}
+
+.result-card {
+  margin-top:16px;
+  padding:23px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:22px;
+  text-align:center;
+}
+
+.small-label {
+  color:var(--muted);
+  font-size:11px;
+  font-weight:bold;
+  letter-spacing:1.5px;
+}
+
+.total {
+  font-size:76px;
+  line-height:1.15;
+  font-weight:900;
+  color:var(--lime);
+  margin:10px 0;
+}
+
+.total-caption {
+  color:var(--muted);
+  font-size:13px;
+}
+
+.hands {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:14px;
+}
+
+.hand-card {
+  padding:18px 10px;
+  border-radius:18px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  text-align:center;
+}
+
+.hand-name {
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:9px;
+}
+
+.hand-count {
+  font-size:34px;
+  color:var(--lime);
+  font-weight:bold;
+}
+
+.hand-count small {
+  font-size:14px;
+  color:var(--muted);
+}
+
+/* БЛОК МИМИКИ */
+
+.face-card {
+  margin-top:16px;
+  padding:20px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:22px;
+}
+
+.face-title {
+  font-size:13px;
+  font-weight:bold;
+  letter-spacing:1.2px;
+  margin-bottom:17px;
+}
+
+.face-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 0;
+  border-bottom:1px solid var(--line);
+  gap:10px;
+}
+
+.face-row:last-child {
+  border-bottom:none;
+  padding-bottom:0;
+}
+
+.face-name {
+  font-size:13px;
+  color:#DCE5DE;
+}
+
+.face-value {
+  color:var(--muted);
+  font-size:12px;
+  text-align:right;
+}
+
+.face-value.detected {
+  color:var(--lime);
+  font-weight:bold;
+}
+
+.face-description {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+  margin-top:14px;
+}
+
+button {
+  width:100%;
+  margin-top:20px;
+  padding:17px;
+  border:none;
+  border-radius:15px;
+  background:var(--lime);
+  color:#101710;
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:disabled {opacity:.6}
+
+.error {
+  color:#ff8585;
+  text-align:center;
+  font-size:12px;
+  margin-top:12px;
+  line-height:1.5;
+}
+
+.info {
+  text-align:center;
+  margin-top:17px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.6;
+}
+
+@media(max-width:360px) {
+  body {padding:18px 12px}
+  .total {font-size:64px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+  <div class="logo">FINGER <span>AI</span></div>
+  <div class="status" id="status">● AI OFFLINE</div>
+</header>
+
+<div class="camera-box">
+
+  <div class="camera-label">FRONT CAMERA</div>
+
+  <div class="placeholder" id="placeholder">
+    <div class="camera-icon">📷</div>
+    <div>Здесь появится изображение с камеры</div>
+  </div>
+
+  <video id="video" autoplay playsinline muted></video>
+
+</div>
+
+<div class="result-card">
+  <div class="small-label">ОБЩЕЕ КОЛИЧЕСТВО ПАЛЬЦЕВ</div>
+  <div class="total" id="total">0</div>
+  <div class="total-caption" id="caption">
+    Ожидание распознавания...
+  </div>
+</div>
+
+<div class="hands">
+
+  <div class="hand-card">
+    <div class="hand-name">✋ ЛЕВАЯ РУКА</div>
+    <div class="hand-count">
+      <span id="leftCount">0</span><small> / 5</small>
+    </div>
+  </div>
+
+  <div class="hand-card">
+    <div class="hand-name">✋ ПРАВАЯ РУКА</div>
+    <div class="hand-count">
+      <span id="rightCount">0</span><small> / 5</small>
+    </div>
+  </div>
+
+</div>
+
+<!-- РАСПОЗНАВАНИЕ МИМИКИ -->
+
+<div class="face-card">
+
+  <div class="face-title">FACE AI · МИМИКА</div>
+
+  <div class="face-row">
+    <span class="face-name">👀 Закрывание глаз</span>
+    <span class="face-value" id="eyes">Ожидание...</span>
+  </div>
+
+  <div class="face-row">
+    <span class="face-name">😉 Подмигивание</span>
+    <span class="face-value" id="wink">Ожидание...</span>
+  </div>
+
+  <div class="face-row">
+    <span class="face-name">😮 Открытие рта</span>
+    <span class="face-value" id="mouth">Ожидание...</span>
+  </div>
+
+  <div class="face-row">
+    <span class="face-name">😛 Показывание языка</span>
+    <span class="face-value" id="tongue">Ожидание...</span>
+  </div>
+
+  <div class="face-description" id="faceInfo">
+    Покажите лицо фронтальной камере.
+  </div>
+
+</div>
+
+<button id="startBtn">Включить камеру</button>
+
+<div class="error" id="error"></div>
+
+<div class="info">
+  FINGER AI · COMPUTER VISION<br>
+  HAND TRACKING + FACE RECOGNITION
+</div>
+
+</div>
+
+<script type="module">
+
+import {
+  HandLandmarker,
+  FaceLandmarker,
+  FilesetResolver
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const video = document.getElementById("video");
+const startBtn = document.getElementById("startBtn");
+const statusEl = document.getElementById("status");
+const placeholder = document.getElementById("placeholder");
+const errorEl = document.getElementById("error");
+
+const totalEl = document.getElementById("total");
+const leftEl = document.getElementById("leftCount");
+const rightEl = document.getElementById("rightCount");
+const captionEl = document.getElementById("caption");
+
+const eyesEl = document.getElementById("eyes");
+const winkEl = document.getElementById("wink");
+const mouthEl = document.getElementById("mouth");
+const tongueEl = document.getElementById("tongue");
+const faceInfoEl = document.getElementById("faceInfo");
+
+let handLandmarker = null;
+let faceLandmarker = null;
+let stream = null;
+let running = false;
+let lastVideoTime = -1;
+
+async function createModel(options) {
+  try {
+    return await options.create({
+      ...options.config,
+      baseOptions: {
+        ...options.config.baseOptions,
+        delegate: "GPU"
+      }
+    });
+  } catch (gpuError) {
+    return await options.create({
+      ...options.config,
+      baseOptions: {
+        ...options.config.baseOptions,
+        delegate: "CPU"
+      }
+    });
+  }
+}
+
+async function loadAI() {
+
+  statusEl.textContent = "● ЗАГРУЗКА AI";
+
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+  );
+
+  const handModelURL =
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+  const faceModelURL =
+    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+  handLandmarker = await createModel({
+    create: config => HandLandmarker.createFromOptions(
+      vision, config
+    ),
+    config: {
+      baseOptions: {
+        modelAssetPath: handModelURL
+      },
+      runningMode: "VIDEO",
+      numHands: 2
+    }
+  });
+
+  faceLandmarker = await createModel({
+    create: config => FaceLandmarker.createFromOptions(
+      vision, config
+    ),
+    config: {
+      baseOptions: {
+        modelAssetPath: faceModelURL
+      },
+      runningMode: "VIDEO",
+      numFaces: 1,
+      outputFaceBlendshapes: true
+    }
+  });
+}
+
+// ГЕОМЕТРИЯ РУКИ
+
+function distance(a, b) {
+  return Math.hypot(
+    a.x-b.x,
+    a.y-b.y,
+    a.z-b.z
+  );
+}
+
+function angle(a,b,c) {
+
+  const v1 = [
+    a.x-b.x,
+    a.y-b.y,
+    a.z-b.z
+  ];
+
+  const v2 = [
+    c.x-b.x,
+    c.y-b.y,
+    c.z-b.z
+  ];
+
+  const dot =
+    v1[0]*v2[0] +
+    v1[1]*v2[1] +
+    v1[2]*v2[2];
+
+  const len1 = Math.hypot(...v1);
+  const len2 = Math.hypot(...v2);
+
+  if (!len1 || !len2) return 0;
+
+  const cosine = Math.max(
+    -1,
+    Math.min(1, dot/(len1*len2))
+  );
+
+  return Math.acos(cosine)*180/Math.PI;
+}
+
+// СТРОГИЙ ПОДСЧЁТ ПАЛЬЦЕВ
+
+function countFingers(landmarks) {
+
+  let count = 0;
+
+  // Ширина ладони
+  const palmWidth = distance(
+    landmarks[5],
+    landmarks[17]
+  );
+
+  // Большой палец:
+  // должен быть отведён от ладони и указательного
+  const thumbSpread = distance(
+    landmarks[4],
+    landmarks[5]
+  );
+
+  const thumbOpen = distance(
+    landmarks[4],
+    landmarks[5]
+  ) > palmWidth * 0.38;
+
+  if (thumbOpen && thumbSpread > palmWidth * 0.38) {
+    count++;
+  }
+
+  // Остальные четыре пальца
+  const fingers = [
+    {mcp:5, pip:6, tip:8, neighbors:[12]},
+    {mcp:9, pip:10, tip:12, neighbors:[8,16]},
+    {mcp:13, pip:14, tip:16, neighbors:[12,20]},
+    {mcp:17, pip:18, tip:20, neighbors:[16]}
+  ];
+
+  for (const finger of fingers) {
+
+    const straightAngle = angle(
+      landmarks[finger.mcp],
+      landmarks[finger.pip],
+      landmarks[finger.tip]
+    );
+
+    // Проверяем, насколько палец выпрямлен
+    const isStraight = straightAngle > 150;
+
+    // Проверяем, отделён ли кончик от соседних пальцев
+    const isSpread = finger.neighbors.every(index => {
+      return distance(
+        landmarks[finger.tip],
+        landmarks[index]
+      ) > palmWidth * 0.13;
+    });
+
+    if (isStraight && isSpread) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+function renderHands(results) {
+
+  let left = 0;
+  let right = 0;
+
+  const hands = results.landmarks || [];
+  const handedness = results.handedness || [];
+
+  for (let i=0; i<hands.length; i++) {
+
+    const fingers = countFingers(hands[i]);
+    const label = handedness[i]?.[0]?.categoryName;
+
+    if (label === "Left") {
+      left = fingers;
+    } else if (label === "Right") {
+      right = fingers;
+    }
+  }
+
+  leftEl.textContent = left;
+  rightEl.textContent = right;
+  totalEl.textContent = left+right;
+
+  if (hands.length === 0) {
+    captionEl.textContent = "Покажите руки камере";
+  } else {
+    captionEl.textContent =
+      `Распознано рук: ${hands.length} · Максимум: 10`;
+  }
+}
+
+// РАСПОЗНАВАНИЕ МИМИКИ
+
+function setFaceValue(element, text, detected) {
+  element.textContent = text;
+  element.classList.toggle("detected", detected);
+}
+
+function renderFace(results) {
+
+  const face = results.faceBlendshapes?.[0];
+
+  if (!face) {
+
+    setFaceValue(eyesEl,"Не обнаружено",false);
+    setFaceValue(winkEl,"—",false);
+    setFaceValue(mouthEl,"—",false);
+    setFaceValue(tongueEl,"—",false);
+
+    faceInfoEl.textContent =
+      "Лицо не обнаружено. Посмотрите прямо в камеру.";
+
+    return;
+  }
+
+  const scores = {};
+
+  for (const item of face.categories) {
+    scores[item.categoryName] = item.score;
+  }
+
+  const blinkLeft = scores.eyeBlinkLeft || 0;
+  const blinkRight = scores.eyeBlinkRight || 0;
+
+  const jawOpen = scores.jawOpen || 0;
+  const tongueOut = scores.tongueOut || 0;
+
+  const leftClosed = blinkLeft > 0.55;
+  const rightClosed = blinkRight > 0.55;
+
+  const bothClosed = leftClosed && rightClosed;
+
+  // Глаза
+  if (bothClosed) {
+
+    setFaceValue(eyesEl,"ЗАКРЫТЫ",true);
+
+  } else if (leftClosed || rightClosed) {
+
+    setFaceValue(eyesEl,"Один закрыт",false);
+
+  } else {
+
+    setFaceValue(eyesEl,"Открыты",false);
+  }
+
+  // Подмигивание
+  if (!bothClosed && leftClosed && blinkRight < 0.35) {
+
+    setFaceValue(winkEl,"Левым глазом",true);
+
+  } else if (!bothClosed && rightClosed && blinkLeft < 0.35) {
+
+    setFaceValue(winkEl,"Правым глазом",true);
+
+  } else {
+
+    setFaceValue(winkEl,"Нет",false);
+  }
+
+  // Открытие рта
+  const mouthOpen = jawOpen > 0.35;
+
+  setFaceValue(
+    mouthEl,
+    mouthOpen ? "ОТКРЫТ" : "Закрыт",
+    mouthOpen
+  );
+
+  // Язык
+  const showingTongue = tongueOut > 0.35;
+
+  setFaceValue(
+    tongueEl,
+    showingTongue ? "ПОКАЗАН" : "Не показан",
+    showingTongue
+  );
+
+  faceInfoEl.textContent =
+    "Face AI активен · Распознавание в реальном времени";
+}
+
+// ОБЩИЙ ЦИКЛ
+
+function detectLoop() {
+
+  if (!running) return;
+
+  if (
+    video.readyState >= 2 &&
+    video.currentTime !== lastVideoTime
+  ) {
+
+    lastVideoTime = video.currentTime;
+
+    const now = performance.now();
+
+    const handResults =
+      handLandmarker.detectForVideo(video,now);
+
+    const faceResults =
+      faceLandmarker.detectForVideo(video,now);
+
+    renderHands(handResults);
+    renderFace(faceResults);
+  }
+
+  requestAnimationFrame(detectLoop);
+}
+
+// ЗАПУСК КАМЕРЫ
+
+async function startCamera() {
+
+  startBtn.disabled = true;
+  errorEl.textContent = "";
+
+  try {
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error(
+        "Камера недоступна. Используйте HTTPS."
+      );
+    }
+
+    if (!handLandmarker || !faceLandmarker) {
+      await loadAI();
+    }
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:"user",
+        width:{ideal:1280},
+        height:{ideal:720}
+      }
+    });
+
+    video.srcObject = stream;
+
+    await video.play();
+
+    video.style.display = "block";
+    placeholder.style.display = "none";
+
+    running = true;
+
+    statusEl.textContent = "● AI ACTIVE";
+    statusEl.classList.add("active");
+
+    startBtn.textContent = "Выключить камеру";
+    startBtn.disabled = false;
+
+    lastVideoTime = -1;
+
+    detectLoop();
+
+  } catch(err) {
+
+    errorEl.textContent =
+      "Ошибка: " + err.message +
+      ". Проверьте интернет и разрешение камеры.";
+
+    statusEl.textContent = "● AI OFFLINE";
+
+    startBtn.textContent = "Попробовать снова";
+    startBtn.disabled = false;
+
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+  }
+}
+
+// ОСТАНОВКА КАМЕРЫ
+
+function stopCamera() {
+
+  running = false;
+
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
+  video.srcObject = null;
+  video.style.display = "none";
+
+  placeholder.style.display = "block";
+
+  leftEl.textContent = "0";
+  rightEl.textContent = "0";
+  totalEl.textContent = "0";
+
+  captionEl.textContent = "Ожидание распознавания...";
+
+  setFaceValue(eyesEl,"Ожидание...",false);
+  setFaceValue(winkEl,"Ожидание...",false);
+  setFaceValue(mouthEl,"Ожидание...",false);
+  setFaceValue(tongueEl,"Ожидание...",false);
+
+  faceInfoEl.textContent =
+    "Покажите лицо фронтальной камере.";
+
+  statusEl.textContent = "● AI OFFLINE";
+  statusEl.classList.remove("active");
+
+  startBtn.textContent = "Включить камеру";
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener("click", () => {
+
+  if (running) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+
+});
+
+</script>
+
+</body>
+      </html>
